@@ -1,0 +1,14 @@
+# yaml-language-server: $schema=https://taskfile.dev/schema.json
+version: '3'
+
+tasks:
+  default:
+    cmds:
+      - task: build
+  build:
+    cmds:
+      - cargo build --color=always --profile release
+      - coreutils mkdir -p ".bin"
+      - coreutils cp --remove-destination ./target/release/new-folder.exe ./.bin/
+  format:
+    cmd: cargo +nightly fmt --all # This will install nightly toolchain, if needed :(

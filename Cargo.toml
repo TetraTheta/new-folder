@@ -1,0 +1,25 @@
+[package]
+name = "new-folder"
+version = "1.0.0"
+edition = "2024"
+rust-version = "1.87"
+build = "build.rs"
+
+[package.metadata.winresource]
+FileDescription = "NewFolder"
+ProductName = "NewFolder"
+
+[build-dependencies]
+winresource = "^0.1"
+
+[dependencies]
+eframe = "^0.31"
+egui = { version = "^0.31", default-features = false }
+egui-font = { git = "https://github.com/TetraTheta/egui-font.git", branch = "main" }
+image = { version = "^0.25", default-features = false }
+native-dialog = { version = "^0.9", features = ["windows_dpi_awareness", "windows_visual_styles"] }
+
+[profile.release]
+lto = true # "thin"
+opt-level = "s"
+strip = true
