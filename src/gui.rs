@@ -140,6 +140,7 @@ pub fn run_gui(target: PathBuf, new_name: String) -> Result<(), eframe::Error> {
       title: Some("New Folder".to_string()),
       ..Default::default()
     },
+    centered: true,
     ..Default::default()
   };
 
