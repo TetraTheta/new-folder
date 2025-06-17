@@ -5,7 +5,8 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use eframe::{App, CreationContext, Frame, NativeOptions, run_native};
-use egui::text::{CCursor, CCursorRange};
+use egui::text::CCursor;
+use egui::text_selection::CCursorRange;
 use egui::{Button, CentralPanel, Context, IconData, Id, TextEdit, Vec2, ViewportBuilder, ViewportCommand};
 use egui_font::set_font;
 use native_dialog::{DialogBuilder, MessageLevel};
@@ -53,7 +54,16 @@ impl App for AppState {
       // first row
       ui.horizontal(|ui| {
         ui.label("New Folder at: ");
-        ui.add(TextEdit::singleline(&mut target).desired_width(f32::INFINITY));
+        let mut target_edit = TextEdit::singleline(&mut target).desired_width(f32::INFINITY).auto_scroll(true).show(ui);
+        let resp = target_edit.response;
+        if !self.autofocused {
+          target_edit
+            .state
+            .cursor
+            .set_char_range(Some(CCursorRange::two(CCursor::new(target.len()), CCursor::new(target.len()))));
+          // do not set `autofocused` to `true` here
+          target_edit.state.store(ui.ctx(), resp.id);
+        }
       });
       // second row
       ui.horizontal(|ui| {
@@ -65,12 +75,9 @@ impl App for AppState {
         // focus and select text when first draw
         if !self.autofocused {
           resp.request_focus();
-          output
-            .state
-            .cursor
-            .set_char_range(Some(CCursorRange::two(CCursor::new(0), CCursor::new(self.new_name.len()))));
-          output.state.store(ui.ctx(), resp.id);
+          output.state.cursor.set_char_range(Some(CCursorRange::two(CCursor::new(0), CCursor::new(target.len()))));
           self.autofocused = true;
+          output.state.store(ui.ctx(), resp.id);
         }
 
         // key event
@@ -104,7 +111,9 @@ impl App for AppState {
     used.x = 386.0;
     ctx.send_viewport_cmd(ViewportCommand::InnerSize(used));
 
-    ctx.request_repaint_after(Duration::from_millis(17)); // approx. 60FPS
+    // update UI as 120FPS
+    // without this, the UI update or app close will only happen when the app has 'focus' (mouse hover)
+    ctx.request_repaint_after(Duration::from_millis(8));
   }
 }
 

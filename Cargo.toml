@@ -1,6 +1,6 @@
 [package]
 name = "new-folder"
-version = "1.0.1"
+version = "1.0.2"
 edition = "2024"
 rust-version = "1.87"
 build = "build.rs"
@@ -11,6 +11,12 @@ ProductName = "NewFolder"
 
 [build-dependencies]
 winresource = "^0.1"
+
+[patch.crates-io]
+eframe = { git = "https://github.com/TetraTheta/egui.git", branch = "offset-test" }
+egui = { git = "https://github.com/TetraTheta/egui.git", branch = "offset-test" }
+egui-winit = { git = "https://github.com/TetraTheta/egui.git", branch = "offset-test" }
+egui_glow = { git = "https://github.com/TetraTheta/egui.git", branch = "offset-test" }
 
 [dependencies]
 eframe = "^0.31"
