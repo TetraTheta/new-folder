@@ -1,6 +1,6 @@
 [package]
 name = "new-folder"
-version = "1.0.2"
+version = "1.0.3"
 edition = "2024"
 rust-version = "1.87"
 build = "build.rs"
@@ -28,4 +28,5 @@ native-dialog = { version = "^0.9", features = ["windows_dpi_awareness", "window
 [profile.release]
 lto = true # "thin"
 opt-level = "s"
+panic = "abort"
 strip = true
