@@ -1,157 +1,152 @@
-use std::fs::create_dir;
-use std::path::PathBuf;
 use std::process::exit;
-use std::sync::Arc;
-use std::time::Duration;
 
-use eframe::{App, CreationContext, Frame, NativeOptions, run_native};
-use egui::text::CCursor;
-use egui::text_selection::CCursorRange;
-use egui::{Button, CentralPanel, Context, IconData, Id, TextEdit, Vec2, ViewportBuilder, ViewportCommand};
-use egui_font::set_font;
+use fltk::app::{IdleHandle, add_idle3, remove_idle3};
+use fltk::button::Button;
+use fltk::enums::{Event, Font, Key};
+use fltk::frame::Frame;
+use fltk::input::Input;
+use fltk::prelude::*;
+use fltk::window::Window;
+use fltk::{app, image};
+use fltk_theme::{ThemeType, WidgetTheme};
 use native_dialog::{DialogBuilder, MessageLevel};
 
-struct AppState {
-  target: PathBuf,
-  new_name: String,
-  autofocused: bool,
-}
-
-impl AppState {
-  fn new(cc: &CreationContext<'_>, target: PathBuf, new_name: String) -> Self {
-    set_font(&cc.egui_ctx);
-
-    Self { target, new_name, autofocused: false }
-  }
-
-  /// Create new folder under `target` with the name of `new_name` and exit the app.
-  fn create_folder_and_exit(&self) {
-    let dir = self.target.join(&self.new_name);
-    if let Err(e) = create_dir(&dir) {
-      error_message(format!("Failed to create '{}': {}", dir.display(), e));
-      exit(1);
-    }
-    exit(0);
-  }
-
-  /// Exit the app.
-  fn cancel_and_exit(&self) {
-    exit(0);
-  }
-}
-
-impl App for AppState {
-  fn update(&mut self, ctx: &Context, _frame: &mut Frame) {
-    // set style
-    let mut style = (*ctx.style()).clone();
-    style.spacing.item_spacing = Vec2::new(10.0, 10.0);
-    style.spacing.button_padding = Vec2::new(0.0, 0.0); // align text to center for both vertically and horizontally
-    ctx.set_style(style);
-
-    CentralPanel::default().show(ctx, |ui| {
-      let mut target = remove_unc(self.target.to_string_lossy().to_string());
-
-      // first row
-      ui.horizontal(|ui| {
-        ui.label("New Folder at: ");
-        let mut target_edit = TextEdit::singleline(&mut target).desired_width(f32::INFINITY).auto_scroll(true).show(ui);
-        let resp = target_edit.response;
-        if !self.autofocused {
-          target_edit
-            .state
-            .cursor
-            .set_char_range(Some(CCursorRange::two(CCursor::new(target.len()), CCursor::new(target.len()))));
-          // do not set `autofocused` to `true` here
-          target_edit.state.store(ui.ctx(), resp.id);
-        }
-      });
-      // second row
-      ui.horizontal(|ui| {
-        ui.label("New Folder name: ");
-        let mut output =
-          TextEdit::singleline(&mut self.new_name).desired_width(f32::INFINITY).id(Id::new("new_name")).show(ui);
-        let resp = output.response;
-
-        // focus and select text when first draw
-        if !self.autofocused {
-          resp.request_focus();
-          output.state.cursor.set_char_range(Some(CCursorRange::two(CCursor::new(0), CCursor::new(target.len()))));
-          self.autofocused = true;
-          output.state.store(ui.ctx(), resp.id);
-        }
-
-        // key event
-        if resp.lost_focus() {
-          if ui.input(|i| i.key_pressed(egui::Key::Enter)) {
-            self.create_folder_and_exit();
-          } else if ui.input(|i| i.key_pressed(egui::Key::Escape)) {
-            self.cancel_and_exit();
-          }
-        }
-      });
-      // third row
-      ui.horizontal(|ui| {
-        // calculate spacer manually :(
-        let button_w = 75.0;
-        let spacing = ui.spacing().item_spacing.x;
-        let spacer = (ui.available_width() - (button_w * 2.0 + spacing)).max(0.0);
-        ui.add_space(spacer);
-
-        if ui.add(Button::new("OK").min_size(Vec2::new(75.0, 23.0))).clicked() {
-          self.create_folder_and_exit();
-        }
-        if ui.add(Button::new("Cancel").min_size(Vec2::new(75.0, 23.0))).clicked() {
-          self.cancel_and_exit();
-        }
-      });
-    });
-
-    // shrink/resize the GUI
-    let mut used = ctx.used_size();
-    used.x = 386.0;
-    ctx.send_viewport_cmd(ViewportCommand::InnerSize(used));
-
-    // update UI as 120FPS
-    // without this, the UI update or app close will only happen when the app has 'focus' (mouse hover)
-    ctx.request_repaint_after(Duration::from_millis(8));
-  }
-}
+use crate::create_folder;
 
 pub fn error_message(s: String) {
   DialogBuilder::message().set_level(MessageLevel::Error).set_title("ERROR").set_text(s).alert().show().unwrap();
 }
 
-fn load_icon() -> IconData {
-  let icon = include_bytes!("../assets/new-folder.png");
-  let img = image::load_from_memory(icon).expect("Failed to load icon").to_rgba8();
-  let (w, h) = img.dimensions();
-  IconData { rgba: img.into_raw(), width: w, height: h }
+pub fn show_error(e: FltkError, msg: &str) {
+  error_message(format!("{}\n{}", e, msg));
 }
 
-fn remove_unc(s: String) -> String {
-  const PREFIX: &str = r"\\?\";
-  if s.starts_with(PREFIX) { (&s[PREFIX.len()..]).parse().unwrap() } else { s }
-}
+pub fn show_gui(target: &str, name: &str) {
+  // app with theme
+  let app = app::App::default().with_scheme(app::Scheme::Gtk).load_system_fonts();
+  let widget_theme = WidgetTheme::new(ThemeType::Dark);
+  widget_theme.apply();
 
-pub fn run_gui(target: PathBuf, new_name: String) -> Result<(), eframe::Error> {
-  let icon = Arc::new(load_icon());
-  let opt = NativeOptions {
-    viewport: ViewportBuilder {
-      active: Some(true),
-      maximize_button: Some(false),
-      drag_and_drop: Some(false),
-      max_inner_size: Some(Vec2::new(386.0, 1.0)), // this will be resized when update
-      min_inner_size: Some(Vec2::new(386.0, 1.0)), // this will be resized when update
-      close_button: Some(true),
-      minimize_button: Some(true),
-      icon: Some(icon),
-      resizable: Some(false),
-      title: Some("New Folder".to_string()),
-      ..Default::default()
-    },
-    centered: true,
-    ..Default::default()
-  };
+  // window
+  let mut win = Window::new(100, 100, 342, 101, "New Folder");
 
-  run_native("New Folder", opt, Box::new(move |cc| Ok(Box::new(AppState::new(cc, target, new_name)))))
+  // font
+  let fonts = app::fonts();
+  let font_list = vec![("Noto Sans KR", 14), ("Malgun Gothic", 14)];
+
+  if let Some((family, size)) = font_list.into_iter().find(|(family, _)| fonts.iter().any(|f| f == family)) {
+    Font::set_font(Font::Helvetica, &family);
+    app::set_font_size(size);
+  }
+
+  // window position
+  win.set_pos((app::screen_size().0 / 2.0) as i32, (app::screen_size().1 / 2.0) as i32);
+
+  // window icon
+  let icon = image::PngImage::from_data(include_bytes!("../assets/new-folder.png")).unwrap_or_else(|e| {
+    show_error(e, "Setting window icon failed");
+    exit(1);
+  });
+  win.set_icon(Some(icon));
+
+  // first row
+  let _lbl_target = Frame::new(12, 15, 88, 12, "New Folder at:");
+  let mut inp_target = Input::new(130, 12, 200, 21, "");
+  inp_target.set_readonly(true);
+  inp_target.set_tab_nav(false);
+  inp_target.set_value(target);
+  inp_target.set_position(target.len() as i32).unwrap_or_else(|e| {
+    show_error(e, "Moving cursor of Input Target failed");
+    exit(1);
+  });
+
+  // second row
+  let _lbl_name = Frame::new(12, 42, 112, 12, "New Folder Name:");
+  let mut inp_name = Input::new(130, 39, 200, 21, "");
+  inp_name.set_value(name);
+  inp_name.take_focus().unwrap_or_else(|e| {
+    show_error(e, "Taking focus of Input Name failed");
+    exit(1);
+  });
+  // text selection and focus will be done later
+
+  // third row
+  let mut btn_ok = Button::new(174, 66, 75, 23, "OK");
+  let mut btn_cancel = Button::new(255, 66, 75, 23, "Cancel");
+
+  // callback
+  btn_ok.set_callback({
+    let inp_target = inp_target.clone();
+    let inp_name = inp_name.clone();
+    move |_| {
+      let target = inp_target.value();
+      let name = inp_name.value();
+      create_folder(target, name);
+      app.quit();
+    }
+  });
+  btn_cancel.set_callback(move |_| {
+    app.quit();
+  });
+
+  inp_name.handle({
+    let mut btn_ok = btn_ok.clone();
+    let mut btn_cancel = btn_cancel.clone();
+    move |_, ev| {
+      if ev == Event::KeyDown {
+        match app::event_key() {
+          Key::Enter => {
+            btn_ok.do_callback();
+            true
+          },
+          Key::Escape => {
+            btn_cancel.do_callback();
+            true
+          },
+          _ => false,
+        }
+      } else {
+        false
+      }
+    }
+  });
+
+  win.end();
+  win.show();
+
+  // select text
+  let len = name.len() as i32;
+  let _ = add_idle3({
+    let mut inp_name = inp_name.clone();
+    move |handle: IdleHandle| {
+      let _ = inp_name.set_position(len);
+      let _ = inp_name.set_mark(0);
+
+      remove_idle3(handle);
+    }
+  });
+
+  // Windows: dark title bar
+  #[cfg(target_os = "windows")]
+  {
+    use windows_sys::Win32::Foundation::HWND;
+    use windows_sys::Win32::Graphics::Dwm::{DWMWA_USE_IMMERSIVE_DARK_MODE, DwmSetWindowAttribute};
+    use windows_sys::core::BOOL;
+
+    let hwnd = win.raw_handle() as HWND;
+    let dark = 1;
+    unsafe {
+      DwmSetWindowAttribute(
+        hwnd,
+        DWMWA_USE_IMMERSIVE_DARK_MODE as u32,
+        &dark as *const BOOL as *const _,
+        size_of_val(&dark) as u32,
+      );
+    }
+  }
+
+  app.run().unwrap_or_else(|e| {
+    show_error(e, "Executing app failed");
+    exit(1);
+  });
 }
