@@ -8,7 +8,7 @@ use fltk::input::Input;
 use fltk::prelude::*;
 use fltk::window::Window;
 use fltk::{app, image};
-use fltk_theme::{ThemeType, WidgetTheme};
+use fltk_theme::{ColorTheme, ThemeType, WidgetTheme, color_themes};
 use native_dialog::{DialogBuilder, MessageLevel};
 
 use crate::create_folder;
@@ -26,17 +26,22 @@ pub fn show_gui(target: &str, name: &str) {
   let app = app::App::default().with_scheme(app::Scheme::Gtk).load_system_fonts();
   let widget_theme = WidgetTheme::new(ThemeType::Dark);
   widget_theme.apply();
+  let color_theme = ColorTheme::new(&color_themes::fleet::DRACULA);
+  color_theme.apply();
 
   // window
   let mut win = Window::new(100, 100, 342, 101, "New Folder");
 
   // font
   let fonts = app::fonts();
-  let font_list = vec![("Noto Sans KR", 14), ("Malgun Gothic", 14)];
+  let font_list = vec![(" Segoe UI Variable Display", 14)];
 
-  if let Some((family, size)) = font_list.into_iter().find(|(family, _)| fonts.iter().any(|f| f == family)) {
+  if let Some((family, size)) = font_list.iter().find(|(family, _)| fonts.iter().any(|f| f == family)) {
     Font::set_font(Font::Helvetica, &family);
-    app::set_font_size(size);
+    app::set_font_size(*size);
+    // error_message(format!("'{}': {}", family, size));
+  } else {
+    // error_message(format!("{:?}", fonts));
   }
 
   // window position
