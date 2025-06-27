@@ -8,7 +8,7 @@ use fltk::input::Input;
 use fltk::prelude::*;
 use fltk::window::Window;
 use fltk::{app, image};
-use fltk_theme::{ColorTheme, ThemeType, WidgetTheme, color_themes};
+use fltk_theme::{ColorTheme, color_themes};
 use native_dialog::{DialogBuilder, MessageLevel};
 
 use crate::create_folder;
@@ -24,8 +24,7 @@ pub fn show_error(e: FltkError, msg: &str) {
 pub fn show_gui(target: &str, name: &str) {
   // app with theme
   let app = app::App::default().with_scheme(app::Scheme::Gtk).load_system_fonts();
-  let widget_theme = WidgetTheme::new(ThemeType::Dark);
-  widget_theme.apply();
+  // don't use widget theme because they don't implement 'OS_BUTTON_DOWN_BOX' and 'OS_BUTTON_DOWN_FRAME'
   let color_theme = ColorTheme::new(&color_themes::fleet::DRACULA);
   color_theme.apply();
 
