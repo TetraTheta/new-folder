@@ -10,28 +10,31 @@ use crate::gui::{error_message, show_gui};
 mod gui;
 
 fn main() {
-  let args: Vec<String> = env::args().collect();
-  let target = if args.len() > 1 {
-    PathBuf::from(&args[1])
-  } else {
-    env::home_dir().unwrap_or_else(|| {
-      error_message("Failed to get home directory.".to_string());
-      exit(1)
-    })
-  };
-  let name = find_new_folder_name(&target);
+  let target_raw = env::args_os().nth(1).unwrap_or_else(|| {
+    env::home_dir()
+      .unwrap_or_else(|| {
+        error_message("Failed to get home directory.");
+        exit(1)
+      })
+      .into()
+  });
+  let target_lstring = target_raw.to_string_lossy();
+  let target_clean = target_lstring
+    .strip_prefix('"')
+    .unwrap_or(&target_lstring)
+    .strip_suffix('"')
+    .unwrap_or(&target_lstring)
+    .replace("\\", "/");
 
-  let target_string = target.to_string_lossy();
-  let target_normalized = target_string.replace("\\", "/");
-  let name_str = name.as_str();
+  let name = find_new_folder_name(&PathBuf::from(&target_clean));
 
-  show_gui(&target_normalized, name_str)
+  show_gui(&target_clean, name.as_str())
 }
 
 pub fn create_folder(target: String, name: String) {
   let dir = PathBuf::from(&target).join(&name);
   if let Err(e) = create_dir(&dir) {
-    error_message(format!("Failed to create '{}': {}", dir.display(), e));
+    error_message(format!("Failed to create '{}': {}", dir.display(), e).as_str());
     exit(1);
   }
   exit(0);

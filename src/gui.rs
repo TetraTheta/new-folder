@@ -2,7 +2,7 @@ use std::process::exit;
 
 use fltk::app::{IdleHandle, add_idle3, remove_idle3};
 use fltk::button::Button;
-use fltk::enums::{Event, Font, Key};
+use fltk::enums::{Align, Event, Font, Key};
 use fltk::frame::Frame;
 use fltk::input::Input;
 use fltk::prelude::*;
@@ -13,12 +13,16 @@ use native_dialog::{DialogBuilder, MessageLevel};
 
 use crate::create_folder;
 
-pub fn error_message(s: String) {
+pub fn error_message(s: &str) {
   DialogBuilder::message().set_level(MessageLevel::Error).set_title("ERROR").set_text(s).alert().show().unwrap();
 }
 
+fn label(x: i32, y: i32, width: i32, height: i32, title: &str) -> Frame {
+  Frame::new(x, y, width, height, title).with_align(Align::Left | Align::Inside)
+}
+
 pub fn show_error(e: FltkError, msg: &str) {
-  error_message(format!("{}\n{}", e, msg));
+  error_message(format!("{}\n{}", e, msg).as_str());
 }
 
 pub fn show_gui(target: &str, name: &str) {
@@ -54,7 +58,7 @@ pub fn show_gui(target: &str, name: &str) {
   win.set_icon(Some(icon));
 
   // first row
-  let _lbl_target = Frame::new(12, 15, 88, 12, "New Folder at:");
+  let _lbl_target = label(12, 15, 112, 12, "New Folder at:");
   let mut inp_target = Input::new(130, 12, 200, 21, "");
   inp_target.set_readonly(true);
   inp_target.set_tab_nav(false);
@@ -65,7 +69,7 @@ pub fn show_gui(target: &str, name: &str) {
   });
 
   // second row
-  let _lbl_name = Frame::new(12, 42, 112, 12, "New Folder Name:");
+  let _lbl_name = label(12, 42, 112, 12, "New Folder Name:");
   let mut inp_name = Input::new(130, 39, 200, 21, "");
   inp_name.set_value(name);
   inp_name.take_focus().unwrap_or_else(|e| {
